@@ -1,153 +1,130 @@
 import React, { useEffect, useState } from 'react'
 import { db, firestore } from '../config/firebase'
+import '../App.css'
 
 const Items = () => {
-    
-    const [jobTitle, setJobTitle] =  useState('')
-    const [jobExperience, setJobExperience] = useState('')
-    const [jobSalaryOffer, setJobSalaryOffer] = useState('')
-    const [jobDescription ,setJobDescription] = useState('')
-    const [selectedCategory, setSelectedCategory] = useState('')
-    const [jobList, setJobList] = useState([])
-    
-    const handleAddJob = async () => {
-      // Generate a unique job key
-      const jobKey = db.ref('jobkey').push().key; 
-      
-      console.log(jobKey);
-    
-      const jobData = {
-        jobTitle,
-        jobDescription,
-        jobExperience,
-        jobSalaryOffer,
-        selectedCategory,
-        'jobId': jobKey,
-        'jobVacant': 'true' 
-      };
-    
-      // Add the job to Firestore
-      await firestore.collection('AllJobs').doc(jobKey).set(jobData)
-        .then(() => {
-          console.log('Job added successfully');
-        })
-        .catch((e) => {
-          console.log('Error adding job:', e);
-        });
-    };
+  const [jobTitle, setJobTitle] = useState('')
+  const [jobExperience, setJobExperience] = useState('')
+  const [jobSalaryOffer, setJobSalaryOffer] = useState('')
+  const [jobDescription, setJobDescription] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('Frontend Developer')
+  const [jobList, setJobList] = useState([])
+  const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-      const fetchingAllJobs = async () => {
-        await firestore.collection('AllJobs').where('jobVacant', '==', 'true').get()
-          .then((snap) => {
-            const allJobs = []
-            snap.forEach((doc)=>{
-              allJobs.push(doc.data())
-              // setJobData(...[doc.data()])
-                console.log(allJobs)
-            })
-            setJobList(allJobs)
-            console.log(jobList)
-          })
-          .catch((e) => {
-            console.log('Error fetching jobs:', e);
-          });
-          // console.log(jobData)
-      };
-    
-      fetchingAllJobs();
-    }, []);
+  const handleAddJob = async () => {
+    if (!jobTitle || !jobDescription || !jobExperience || !jobSalaryOffer) return alert('Please fill all fields')
+    const jobKey = db.ref('jobkey').push().key
+    const jobData = { jobTitle, jobDescription, jobExperience, jobSalaryOffer, selectedCategory, jobId: jobKey, jobVacant: 'true' }
+    await firestore.collection('AllJobs').doc(jobKey).set(jobData)
+      .then(() => {
+        setJobList([...jobList, jobData])
+        setJobTitle(''); setJobDescription(''); setJobExperience(''); setJobSalaryOffer('')
+      }).catch((e) => console.log('Error adding job:', e))
+  }
 
-
-    const handleDelete = async (val) =>{
-      console.log(val.jobId)
-      const jobID = val.jobId 
-      await firestore.collection('AllJobs').doc(jobID).delete()
-      
+  useEffect(() => {
+    const fetchingAllJobs = async () => {
+      setLoading(true)
+      await firestore.collection('AllJobs').where('jobVacant', '==', 'true').get()
+        .then((snap) => {
+          const allJobs = []
+          snap.forEach((doc) => allJobs.push(doc.data()))
+          setJobList(allJobs)
+        }).catch((e) => console.log('Error fetching jobs:', e))
+      setLoading(false)
     }
+    fetchingAllJobs()
+  }, [])
+
+  const handleDelete = async (val) => {
+    await firestore.collection('AllJobs').doc(val.jobId).delete()
+      .then(() => setJobList(jobList.filter(j => j.jobId !== val.jobId)))
+  }
+
   return (
-    
+    <div className="page-content">
+      <div className="page-header">
+        <h1 className="page-title">Manage Jobs</h1>
+        <p className="page-subtitle">Post new positions and manage existing listings</p>
+      </div>
 
-    <div className='min-w-full min-h-full flex flex-col justify-start items-center gap-8 overflow-auto touch-pan-yoverflow-auto touch-pan-y font-lato'>
-      <div className='text-center '>
-        <h1 className='text-4xl font-bold'> Jobs Listing </h1>
+      {/* Add Job Form */}
+      <div className="form-card">
+        <div className="form-card-title">Post a New Job</div>
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label">Job title</label>
+            <input className="form-input" type="text" placeholder="e.g. Senior Frontend Developer" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Category</label>
+            <select className="form-select" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+              <option>Ui/Ux Designer</option>
+              <option>Frontend Developer</option>
+              <option>Backend Developer</option>
+              <option>Devops</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Experience required</label>
+            <input className="form-input" type="text" placeholder="e.g. 2+ years" value={jobExperience} onChange={(e) => setJobExperience(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Salary package</label>
+            <input className="form-input" type="text" placeholder="e.g. 80,000 / year" value={jobSalaryOffer} onChange={(e) => setJobSalaryOffer(e.target.value)} />
+          </div>
+          <div className="form-group full-width">
+            <label className="form-label">Job description</label>
+            <input className="form-input" type="text" placeholder="Describe the role and responsibilities…" value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} />
+          </div>
         </div>
-
-      <div className='flex flex-col '>
-        
-        {/* Job title */}
-        <input type="text" placeholder='Job title' 
-        value={jobTitle} 
-        onChange={(e)=>setJobTitle(e.target.value)}
-        className='w-80 h-12 my-2 px-3 py-2 bg-slate-100  text-md  shadow-sm placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-600' />
-
-        {/* Job Description */}
-        <input type="text" placeholder='Job description' 
-        value={jobDescription} 
-        onChange={(e)=>setJobDescription(e.target.value)}
-        className='w-80 h-12 my-2 px-3 py-2 bg-slate-100  text-md  shadow-sm placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-600' />
-        
-        {/* Job Experience */}
-        <input type="text" placeholder='Experience' value={jobExperience} 
-        onChange={(e)=>setJobExperience(e.target.value)}
-        className='w-80 h-12 my-2 px-3 py-2 bg-slate-100  text-md  shadow-sm placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-600'
-        />
-        
-        {/* Job Salary */}
-        <input type="text" placeholder='Salary package' value={jobSalaryOffer} 
-        onChange={(e)=>setJobSalaryOffer(e.target.value)}
-        className='w-80 h-12 my-2 px-3 py-2 bg-slate-100  text-md  shadow-sm placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-600'
-        />
-
-        <select name="" id="" value={selectedCategory} onChange={(e)=>setSelectedCategory(e.target.value)}
-          className='w-80 h-12 my-2 border-2 border-solid text-slate-500 focus:border-slate-500'
-          >
-          <option value="Ui/Ux Designer">Ui/Ux Designer</option>
-          <option value="Frontend Developer">Frontend Developer</option>
-          <option value="Backend Developer">Backend Developer</option>
-          <option value="Devops">DevOps</option>
-        </select>
-
-        <button  className='border-2 border-transparent rounded-md h-12 w-80 px-6 py-2 my-2 text-white bg-blue-400 font-bold hover:bg-blue-600' onClick={handleAddJob}>Add Job</button>
+        <div style={{ marginTop: 16 }}>
+          <button className="btn-add" onClick={handleAddJob}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Post Job
+          </button>
+        </div>
       </div>
 
-      {/* render Job List */}
-      <div>
-        <h1 className='text-4xl font-bold text-center my-4'>JOBs LIST</h1>
-        <table >
-          <th>
-            <tr className='flex gap-2  text-center '>
-            <td className='border-2 w-24'>Job Title</td>
-            <td className='border-2 w-96' >Job Description</td>
-            <td className='border-2 w-24'>Job Category</td>
-            <td className='border-2 w-24'>Experience</td>
-            <td className='border-2 w-24'>Salary</td>
-            <td className='border-2 w-24'>Action</td>
-            </tr>
-          </th>
-          <tbody>
-
-          {jobList.map((val,ind)=>{
-            return(
-
-              <tr className='flex gap-2 my-2 text-center' key={ind}>
-                <td className='border-2 w-24'>{val.jobTitle}</td>
-                <td className='border-2 w-96'>{val.jobDescription}</td>
-                <td className='border-2 w-24'>{val.selectedCategory}</td>
-                <td className='border-2 w-24'>{val.jobExperience}</td>
-                <td className='border-2 w-24'>{val.jobSalaryOffer}</td>
-                <td className='w-24'><button onClick={(e)=>handleDelete(val)} className='w-full h-full bg-red-600 text-white font-bold rounded-md'>Delete Job</button></td>
-            </tr>
-            )
-          })
-          
-          }
-        
-          </tbody>
-          
-        </table>
+      {/* Job List Table */}
+      <div className="table-card">
+        <div className="table-header">
+          <span className="table-title">Active Listings</span>
+          <span className="table-count">{jobList.length} jobs</span>
+        </div>
+        {loading ? (
+          <div className="loading"><div className="spinner"></div> Loading jobs…</div>
+        ) : jobList.length === 0 ? (
+          <div className="empty-state"><div className="empty-icon">📋</div><p>No jobs posted yet</p></div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Job Title</th>
+                  <th>Category</th>
+                  <th>Experience</th>
+                  <th>Salary</th>
+                  <th>Description</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobList.map((val, ind) => (
+                  <tr key={ind}>
+                    <td style={{ fontWeight: 500 }}>{val.jobTitle}</td>
+                    <td><span className="badge" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>{val.selectedCategory}</span></td>
+                    <td className="td-muted">{val.jobExperience}</td>
+                    <td className="td-muted">{val.jobSalaryOffer}</td>
+                    <td className="td-muted" style={{ maxWidth: 240, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val.jobDescription}</td>
+                    <td><button className="btn-delete" onClick={() => handleDelete(val)}>Delete</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-
     </div>
   )
 }

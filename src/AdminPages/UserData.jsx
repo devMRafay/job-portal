@@ -1,104 +1,85 @@
-import React, { useEffect, useState } from 'react';
-import { firestore } from '../config/firebase';
+import React, { useEffect, useState } from 'react'
+import { firestore } from '../config/firebase'
+import '../App.css'
 
 const AdminPanel = () => {
-  const [allAppliedCandidates, setAllAppliedCandidates] = useState([]);
+  const [allAppliedCandidates, setAllAppliedCandidates] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // Function to fetch all applied candidates from Firestore
-  
-    const fetchingAppliedCandidate = async () => {
-      const allCandidates = [];
-      await firestore.collection('Applied-Jobs').where('status', '==', 'pending').get()
-      .then((snap)=>{
-        snap.forEach((doc) => {
-          console.log(doc.data())
+  const fetchingAppliedCandidate = async () => {
+    setLoading(true)
+    const allCandidates = []
+    await firestore.collection('Applied-Jobs').where('status', '==', 'pending').get()
+      .then((snap) => {
+        snap.forEach((doc) => allCandidates.push(doc.data()))
+        setAllAppliedCandidates(allCandidates)
+      }).catch((e) => alert('Error fetching candidates: ' + e))
+    setLoading(false)
+  }
 
-          allCandidates.push(doc.data());
-        });
-        setAllAppliedCandidates(allCandidates);
-      
-      }).catch((e)=>{
-        alert('Error fetching candidates:', e);
-        })
-    };
-  useEffect(()=>{    
-    fetchingAppliedCandidate();
-  },[])
-  
-  
-  // Handle acceptance of a candidate
+  useEffect(() => { fetchingAppliedCandidate() }, [])
+
   const handleAccept = async (e) => {
-    console.log(e.userId)
     try {
-      const userId = e.userId;
-      await firestore.collection('Applied-Jobs').doc(userId).update({
-        status: 'Accepted',
-        jobVacant: 'false',
-      });
-      fetchingAppliedCandidate(); // Refresh the list after updating
-    } catch (err) {
-      alert('Error accepting candidate:', err);
-    }
-  };
-  
-  // Handle rejection of a candidate
-  const handleReject = async (e) => {
-    console.log(e.userId)
-    try {
-      const userId = e.userId;
-      await firestore.collection('Applied-Jobs').doc(userId).delete();
-      const msg = 'Rejected successfully!';
-      alert(msg)
-      fetchingAppliedCandidate(); // Refresh the list after updating
-    }catch(err){
-      alert('Error rejecting candidate:', err);
-    }
-  };
+      await firestore.collection('Applied-Jobs').doc(e.userId).update({ status: 'Accepted', jobVacant: 'false' })
+      fetchingAppliedCandidate()
+    } catch (err) { alert('Error accepting candidate: ' + err) }
+  }
 
-// };
+  const handleReject = async (e) => {
+    try {
+      await firestore.collection('Applied-Jobs').doc(e.userId).delete()
+      fetchingAppliedCandidate()
+    } catch (err) { alert('Error rejecting candidate: ' + err) }
+  }
+
+  const getInitials = (name = '') => name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+
   return (
-    <div className="min-w-full min-h-screen flex flex-col items-center font-lato">
-      <div className="flex justify-between items-center w-full p-6 bg-blue-400 text-white">
-        <h1 className="text-4xl font-bold">Admin Panel</h1>
-        <p className="text-xl">Manage Applied Candidates</p>
+    <div className="page-content">
+      <div className="page-header">
+        <h1 className="page-title">Applications</h1>
+        <p className="page-subtitle">Review and manage candidate applications</p>
       </div>
 
-      <div className="w-full h-screen p-6 bg-slate-50">
-        <h2 className="text-2xl font-bold text-blue-900 mb-4">Applied Candidates</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {allAppliedCandidates.length === 0 ? (
-            <p>No candidates have applied yet.</p>
-          ) : (
-            allAppliedCandidates.map((val, ind) => (
-              <div key={ind} className="card  gap-3 m-6 p-4  text-black w-80 h-auto bg-slate-50 hover:border-2 border-slate-50 rounded-md">
-                <p className="text-xl font-bold text-black ">{val.userName}</p>
-                <p>Email: {val.userEmail}</p>
-                <p>Job Title: {val.jobTitle}</p>
-                <p>Description: {val.jobDescription}</p>
-                
-                <div className="flex justify-center items-center gap-2 mt-4">
-                <p>Status: {val.status}</p>
-                  <button
-                    className="bg-red-500 hover:bg-red-600 rounded-md text-white px-4 py-2"
-                    onClick={() => handleReject(val)}
-                  >
-                    Reject
-                  </button>
-                  <button
-                    className="bg-blue-500 hover:bg-blue-600 rounded-md text-white px-4 py-2"
-                    onClick={() => handleAccept(val)}
-                  >
-                    Accept
-                  </button>
+      {loading ? (
+        <div className="loading"><div className="spinner"></div> Loading applications…</div>
+      ) : allAppliedCandidates.length === 0 ? (
+        <div className="empty-state"><div className="empty-icon">📬</div><p>No pending applications</p></div>
+      ) : (
+        <>
+          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 14, color: 'var(--text-2)' }}>{allAppliedCandidates.length} pending application{allAppliedCandidates.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="candidates-grid">
+            {allAppliedCandidates.map((val, ind) => (
+              <div key={ind} className="candidate-card">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <div className="admin-avatar" style={{ width: 42, height: 42, fontSize: 14, flexShrink: 0 }}>
+                    {getInitials(val.userName)}
+                  </div>
+                  <div>
+                    <div className="candidate-name">{val.userName}</div>
+                    <div className="candidate-info">{val.userEmail}</div>
+                  </div>
+                </div>
+                <div style={{ height: 1, background: 'var(--border)', marginBottom: 12 }} />
+                <div className="candidate-info"><strong style={{ color: 'var(--text-1)' }}>Role:</strong> {val.jobTitle}</div>
+                <div className="candidate-info" style={{ marginTop: 4 }}><strong style={{ color: 'var(--text-1)' }}>Description:</strong> {val.jobDescription}</div>
+                <div className="candidate-actions">
+                  <span className="badge badge-pending">Pending</span>
+                  <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                    <button className="btn-reject" onClick={() => handleReject(val)}>Reject</button>
+                    <button className="btn-accept" onClick={() => handleAccept(val)}>Accept</button>
+                  </div>
                 </div>
               </div>
-            ))
-          )}
-        </div>
-      </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
-  );
-};
+  )
+}
 
-export default AdminPanel;
+export default AdminPanel

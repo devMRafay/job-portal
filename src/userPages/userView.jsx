@@ -1,133 +1,121 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { firestore } from '../config/firebase';
+import React, { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { firestore } from '../config/firebase'
 import '../App.css'
 
 const UserView = () => {
-  const [JobsData, setJobsData] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('All'); // State for selected category
-  const nav = useNavigate();
-  const userId = localStorage.getItem('uid');
-  const userName = localStorage.getItem('name');
+  const [JobsData, setJobsData] = useState([])
+  const [selectedCategory, setSelectedCategory] = useState('All')
+  const [loading, setLoading] = useState(true)
+  const nav = useNavigate()
+  const userId = localStorage.getItem('uid')
+  const userName = localStorage.getItem('name')
   const userEmail = localStorage.getItem('email')
-  console.log(userId);
+  const userImage = localStorage.getItem('image') || ''
+
+  const getInitials = (name = '') => name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
   useEffect(() => {
     const fetchJobDataAtUserPanel = async () => {
-      await firestore.collection('AllJobs').where('jobVacant', '==' ,'true').get().then((snap) => {
-        const allJobsData = [];
-        snap.forEach((doc) => {
-          allJobsData.push(doc.data());
-          console.log(allJobsData);
-        });
-        setJobsData(allJobsData);
-      });
-    };
-    fetchJobDataAtUserPanel();
-  }, []);
+      setLoading(true)
+      await firestore.collection('AllJobs').where('jobVacant', '==', 'true').get()
+        .then((snap) => {
+          const allJobsData = []
+          snap.forEach((doc) => allJobsData.push(doc.data()))
+          setJobsData(allJobsData)
+        })
+      setLoading(false)
+    }
+    fetchJobDataAtUserPanel()
+  }, [])
 
-  const handleLogOut = () => {
-    localStorage.clear();
-    console.log(userId);
-    nav('/login');
-  };
+  const handleLogOut = () => { localStorage.clear(); nav('/login') }
+  const handleCategoryClick = (category) => setSelectedCategory(category)
 
-  // Handle category selection
-  const handleCategoryClick = (category) => {
-    setSelectedCategory(category);
-  };
-
-  // Filter jobs based on selected category
   const filteredJobs = selectedCategory === 'All'
     ? JobsData
-    : JobsData.filter(job => job.selectedCategory === selectedCategory);
+    : JobsData.filter(job => job.selectedCategory === selectedCategory)
 
-  // Handle Applied for job
   const handleAppliedForJob = async (data) => {
-    
-    // console.log(data.jobTitle)
-    // console.log(data.jobDescription)
     const userDataForAppliedData = {
-        userId,
-        userName,
-        userEmail,
-        'jobTitle': data.jobTitle,
-        'jobDescription': data.jobDescription,
-        'jobId':data.jobId,
-        'status': 'pending'
-      }
+      userId, userName, userEmail,
+      jobTitle: data.jobTitle, jobDescription: data.jobDescription,
+      jobId: data.jobId, status: 'pending'
+    }
+    await firestore.collection('Applied-Jobs').doc(userId).set(userDataForAppliedData)
+      .then(() => alert('Applied successfully!'))
+      .catch((e) => alert(e))
+  }
 
-      await firestore.collection('Applied-Jobs').doc(userId).set(userDataForAppliedData)
-      .then(()=>{
-        alert('Applied successfully')
-      }).catch((e)=>{
-        alert(e)
-      })
+  const categories = ['All', 'Frontend Developer', 'Backend Developer', 'Ui/Ux Designer', 'Devops']
 
-  } 
   return (
-    <div className='min-w-full min-h-screen flex flex-col justify-center items-center font-lato  relative'>
-      <div className='flex justify-around items-center h-auto min-w-full sticky top-0 left-0 right-0 bg-blue-400 text-blue-900'>
-        <h1 className='text-5xl font-bold font-playfair'>LOGO</h1>
-        <p className='text-center p-6 text-3xl font-bold'>Welcome To User View Panel</p>
-        <div className='btn'>
-          <Link to={'/appliedJobs'} className='text-lg font-bold border-2 border-blue-900 hover:bg-blue-900 hover:text-white rounded-full px-4 py-2'>Response from Admin</Link>
-          <button onClick={handleLogOut}
-            className=' m-2 px-4 py-2 font-bold text-white bg-blue-900 rounded-full hover:bg-blue-400 hover:border-2 hover:border-blue-900 hover:text-blue-900'>
-           Logout
-          </button>
-
+    <div style={{ minHeight: '100vh', background: 'var(--surface-3)' }}>
+      {/* Navbar */}
+      <nav className="user-navbar">
+        <div className="user-navbar-brand">
+          <span>💼 JobPortal</span>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="admin-avatar" style={{ width: 34, height: 34, fontSize: 12 }}>
+            {userImage ? <img src={userImage} alt={userName} /> : getInitials(userName || '')}
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)', marginRight: 8 }}>{userName}</span>
+        </div>
+        <div className="user-nav-actions">
+          <Link to="/appliedJobs" className="btn-nav-link">My Applications</Link>
+          <button className="btn-logout" onClick={handleLogOut}>Logout</button>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <div style={{ background: 'var(--primary)', padding: '36px 24px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', marginBottom: 8, letterSpacing: '-0.3px' }}>
+          Find Your Dream Job
+        </h1>
+        <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.8)' }}>
+          Browse {JobsData.length} open positions across categories
+        </p>
       </div>
-      
-      <div className=' flex flex-col min-w-full min-h-screen  rounded-md bg-slate-50 '>
-        <div className='filter-job w-full text-xl font-bold text-blue-900 my-4 flex justify-around items-center'>
-          <div onClick={() => handleCategoryClick('All')}
-               className={`hover:bg-slate-50 p-3 rounded-md cursor-pointer ${selectedCategory === 'All' ? 'bg-blue-200' : ''}`}>
-            All
-          </div>
-          <div onClick={() => handleCategoryClick('Frontend Developer')}
-               className={`hover:bg-slate-50 p-3 rounded-md cursor-pointer ${selectedCategory === 'Frontend Developer' ? 'bg-blue-200' : ''}`}>
-            Frontend Developer
-          </div>
-          <div onClick={() => handleCategoryClick('Backend Developer')}
-               className={`hover:bg-slate-50 p-3 rounded-md cursor-pointer ${selectedCategory === 'Backend Developer' ? 'bg-blue-200' : ''}`}>
-            Backend Developer
-          </div>
-          <div onClick={() => handleCategoryClick('Ui/Ux Designer')}
-               className={`hover:bg-slate-50 p-3 rounded-md cursor-pointer ${selectedCategory === 'Ui/Ux Designer' ? 'bg-blue-200' : ''}`}>
-            Ui/Ux Designer
-          </div>
-          <div onClick={() => handleCategoryClick('Devops')}
-               className={`hover:bg-slate-50 p-3 rounded-md cursor-pointer ${selectedCategory === 'Devops' ? 'bg-blue-200' : ''}`}>
-            Devops
-          </div>
-        </div>
 
-        <div className='card-container w-full flex justify-center flex-wrap'>
-          {filteredJobs.length > 0 ? (
-            filteredJobs.map((val, ind) => (
-              <div key={ind} className='card  gap-6 m-6 p-6  text-black w-80 h-auto bg-slate-50 hover:border-2 border-slate-50 rounded-md'>
-                {/* <h1 className='my-2'>Category: {val.selectedCategory}</h1> */}
-                <h1 className=' text-xl font-bold text-black '>{val.jobTitle}</h1>
-                <p className=''>{val.jobDescription}</p>
-                <p className=''>Minimum Experience  {val.jobExperience}</p>
-                <div className='flex justify-between items-center'>
-                    <p className=''>Salary Package  Rs{val.jobSalaryOffer}</p>
-                    <button onClick={(e)=>handleAppliedForJob(val)} 
-                      className='bg-blue-500 hover:bg-blue-700 text-white  w-36 px-1 py-3 rounded-md font-bold ' >
-                      Apply for Job
-                    </button>
+      {/* Filter Bar */}
+      <div className="filter-bar">
+        {categories.map(cat => (
+          <button key={cat} className={`filter-tab ${selectedCategory === cat ? 'active' : ''}`}
+            onClick={() => handleCategoryClick(cat)}>
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Jobs Grid */}
+      {loading ? (
+        <div className="loading"><div className="spinner"></div> Loading jobs…</div>
+      ) : filteredJobs.length === 0 ? (
+        <div className="empty-state"><div className="empty-icon">🔍</div><p>No jobs found in this category</p></div>
+      ) : (
+        <div className="jobs-grid">
+          {filteredJobs.map((val, ind) => (
+            <div key={ind} className="job-card">
+              <span className="job-category-badge">{val.selectedCategory}</span>
+              <div className="job-title">{val.jobTitle}</div>
+              <div className="job-desc">{val.jobDescription}</div>
+              <div className="job-meta">
+                <div className="job-meta-item">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <strong>Exp:</strong> {val.jobExperience}
                 </div>
               </div>
-            ))
-          ) : (
-            <p>No jobs available in this category.</p>
-          )}
+              <div className="job-card-footer">
+                <div className="job-salary">Rs {val.jobSalaryOffer}</div>
+                <button className="btn-apply" onClick={() => handleAppliedForJob(val)}>Apply Now</button>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
     </div>
-  );
-};
+  )
+}
 
-export default UserView;
+export default UserView
